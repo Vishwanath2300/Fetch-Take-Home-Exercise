@@ -1,18 +1,3 @@
-# - name: sample body up
-#   url: https://httpbin.org/post
-#   method: POST
-#   headers:
-#     content-type: application/json
-#   body: '{"foo":"bar"}'
-
-# - name: simple get
-#   url: https://httpbin.org/get
-#   method: GET
-#   headers:
-#     content-type: application/json
-#   body: '{"foo":"bar"}'
-#   # body is ignored for GET requests
-
 
 - name: sample index up
   url: https://example.com/
