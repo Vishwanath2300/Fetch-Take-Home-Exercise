@@ -1,4 +1,4 @@
-
+# Here we are going with two endpoints, one for a GET request and another for a POST request.
 - name: sample index up
   url: https://example.com/
   method: GET
