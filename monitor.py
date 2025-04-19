@@ -14,25 +14,31 @@ import requests
 import yaml
 
 
-class DomainStats:
+
+class APIStats:
     def __init__(self):
         self.success = 0
-        self.total = 0
-        self.lock = threading.Lock()
+        self.total_tries = 0
+        # Use lock while testing same endpoints for accurate results
+        # self.lock = threading.Lock()
 
-    def increment_total(self):
-        with self.lock:
-            self.total += 1
+    def increment_total_tries(self):
+        # with self.lock:
+        #     self.total += 1
+        self.total_tries+=1
+
 
     def increment_success(self):
-        with self.lock:
-            self.success += 1
+        # with self.lock:
+        #     self.success += 1
+        self.success+=1
 
 # Checking endpoint availability and response time.
 class EndpointMonitor:
     def __init__(self, config_file: str):
         self.endpoints = self._load_config(config_file)
-        self.stats = {}  # Domain -> DomainStats mapping
+
+        self.stats = {}  # API -> APIStats mapping
         self._initialize_stats()
 
     def _load_config(self, config_file: str) -> List[Dict]:
@@ -46,14 +52,18 @@ class EndpointMonitor:
     def _initialize_stats(self):
         # Initializing stats for all domains.
         for endpoint in self.endpoints:
-            domain = self._extract_domain(endpoint['url'])
-            if domain not in self.stats:
-                self.stats[domain] = DomainStats()
+            # print(endpoint)
+            url = endpoint[('url')]
+            # self._extract_domain(endpoint[')url'])
 
-    def _extract_domain(self, url: str) -> str:
-        # Extract domain from URL, ignoring port numbers.
-        parsed_url = urllib.parse.urlparse(url)
-        return parsed_url.netloc.split(':')[0]  # Remove port if present
+            if url not in self.stats:
+                self.stats[url] = APIStats()
+
+    # def _extract_domain(self, url: str) -> str:
+    #     # Extract domain from URL, ignoring port numbers.
+    #     parsed_url = urllib.parse.urlparse(url)
+    #     # print(url)
+    #     return parsed_url.netloc.split(':')[0]  # Remove port if present
 
     def check_health(self, endpoint: Dict):
         # Check health of a single endpoint on by one.
@@ -62,11 +72,12 @@ class EndpointMonitor:
         headers = endpoint.get('headers', {})
         body = endpoint.get('body', '')
         
-        domain = self._extract_domain(url)
-        if domain not in self.stats:
-            self.stats[domain] = DomainStats()
+        # domain = self._extract_domain(url)
+        # print(url)
+        if url not in self.stats:
+            self.stats[url] = APIStats()
         
-        self.stats[domain].increment_total()
+        self.stats[url].increment_total_tries()
         
         try:
             # We convert body string to JSON inase if it's a JSON content
@@ -85,16 +96,16 @@ class EndpointMonitor:
                 method=method,
                 url=url,
                 headers=headers,
-                json=data if isinstance(data, dict) else None,
-                data=data if not isinstance(data, dict) else None,
+                # json=data if isinstance(data, dict) else None,
+                # data=data if not isinstance(data, dict) else None,
                 timeout=0.5  # 500ms timeout is considerd here 
             )
             response_time = time.time() - start_time
             
             # We need to check if response meets criteria (200-299 status code and has ≤500ms response time)
             if 200 <= response.status_code < 300 and response_time <= 0.5:
-                print(f"SUCCESS [{endpoint.get('name', url)}] {url} - Status: {response.status_code}, Time: {response_time:.2f}ms")
-                self.stats[domain].increment_success()
+                # print(f"SUCCESS [{endpoint.get('name', url)}] {url} - Status: {response.status_code}, Time: {response_time * 1000:.2f}ms")
+                self.stats[url].increment_success()
                 
         except requests.exceptions.Timeout:
             print(f"Request to {url} timed out")
@@ -111,10 +122,10 @@ class EndpointMonitor:
     def log_results(self):
         # Here we Log current availability results.
         print("\n--- Availability Report at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "---")
-        for domain, stat in self.stats.items():
-            with stat.lock:
-                percentage = int(round(100 * stat.success / stat.total)) if stat.total > 0 else 0
-                print(f"{domain} has {percentage}% availability ({stat.success}/{stat.total} successful requests)")
+        for url, stat in self.stats.items():
+            # with stat.lock:
+            percentage = int(round(100 * stat.success / stat.total_tries)) if stat.total_tries > 0 else 0
+            print(f"{url} has {percentage}% availability ({stat.success}/{stat.total_tries} successful requests)")
         print("-------------------------")
 
     def monitor(self):
